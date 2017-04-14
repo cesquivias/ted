@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import atexit
+import curses.ascii
 import sys
 import termios
 
@@ -32,3 +33,7 @@ if __name__ == '__main__':
             break
         elif c == 'q':
             break
+        if curses.ascii.iscntrl(c):
+            print '%d' % ord(c)
+        else:
+            print "%d ('%c')" % (ord(c), c)
