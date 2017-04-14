@@ -15,6 +15,7 @@ def enable_raw_mode():
 
     raw = termios.tcgetattr(fd)
     raw[0] = raw[0] & ~(termios.IXON | termios.ICRNL)
+    raw[1] = raw[1] & ~(termios.OPOST)
     raw[3] = raw[3] & ~(termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN)
     termios.tcsetattr(fd, termios.TCSAFLUSH, raw)
 
@@ -35,6 +36,6 @@ if __name__ == '__main__':
         elif c == 'q':
             break
         if curses.ascii.iscntrl(c):
-            print '%d' % ord(c)
+            print '%d\r' % ord(c)
         else:
-            print "%d ('%c')" % (ord(c), c)
+            print "%d ('%c')\r" % (ord(c), c)
