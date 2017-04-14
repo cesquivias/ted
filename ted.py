@@ -2,6 +2,7 @@
 
 import atexit
 import curses.ascii
+import errno
 import os
 import sys
 import termios
@@ -35,7 +36,13 @@ if __name__ == '__main__':
     fd = enable_raw_mode()
 
     while True:
-        c = os.read(fd, 1)
+        try:
+            c = os.read(fd, 1)
+        except OSError as err:
+            if err.errno == errno.EAGAIN:
+                c = None
+            else:
+                raise
         if not c:
             continue
         if curses.ascii.iscntrl(c):
