@@ -2,6 +2,7 @@
 
 import atexit
 import curses.ascii
+import os
 import sys
 import termios
 
@@ -17,9 +18,13 @@ def enable_raw_mode():
     raw[0] = raw[0] & ~(termios.IXON | termios.ICRNL)
     raw[1] = raw[1] & ~(termios.OPOST)
     raw[3] = raw[3] & ~(termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN)
+    raw[6][termios.VMIN] = 0
+    raw[6][termios.VTIME] = 1
+
     termios.tcsetattr(fd, termios.TCSAFLUSH, raw)
 
     atexit.register(disable_raw_mode)
+    return fd
 
 def disable_raw_mode():
     fd = sys.stdin.fileno()
@@ -27,15 +32,15 @@ def disable_raw_mode():
 
 
 if __name__ == '__main__':
-    enable_raw_mode()
+    fd = enable_raw_mode()
 
     while True:
-        c = sys.stdin.read(1)
-        if c is None:
-            break
-        elif c == 'q':
-            break
+        c = os.read(fd, 1)
+        if not c:
+            continue
         if curses.ascii.iscntrl(c):
             print '%d\r' % ord(c)
         else:
             print "%d ('%c')\r" % (ord(c), c)
+        if c == 'q':
+            break
