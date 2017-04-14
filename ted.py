@@ -15,7 +15,7 @@ def enable_raw_mode():
 
     raw = termios.tcgetattr(fd)
     raw[0] = raw[0] & ~(termios.IXON)
-    raw[3] = raw[3] & ~(termios.ECHO | termios.ICANON | termios.ISIG)
+    raw[3] = raw[3] & ~(termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN)
     termios.tcsetattr(fd, termios.TCSAFLUSH, raw)
 
     atexit.register(disable_raw_mode)
