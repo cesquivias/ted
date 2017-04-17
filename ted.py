@@ -9,19 +9,24 @@ import sys
 import termios
 import tty
 
+CONFIG = {
+    'original_termios': None,
+    'screen_rows': 0,
+    'screen_cols': 0,
+}
+
+
 def ctrl(key):
     return chr(ord(key) & 0x1f)
 
-def on_exit_func(fd, tcattr):
-    def on_exit():
-        os.write(fd, '\x1b[2J')
-        os.write(fd, '\x1b[H')
-        termios.tcsetattr(fd, termios.TCSAFLUSH, tcattr)
-    return on_exit
+@atexit.register
+def on_exit():
+    os.write(fd, '\x1b[2J')
+    os.write(fd, '\x1b[H')
+    termios.tcsetattr(fd, termios.TCSAFLUSH, CONFIG['original_termios'])
 
 def enable_raw_mode(fd):
-    original_attrs = termios.tcgetattr(fd)
-    atexit.register(on_exit_func(fd, original_attrs))
+    CONFIG['original_termios'] = termios.tcgetattr(fd)
     tty.setraw(fd)
 
 def read_key(fd):
