@@ -27,6 +27,9 @@ def read_key(fd):
         else:
             raise
 
+def refresh_screen(fd):
+    os.write(fd, '\x1b[2J')
+
 def process_key_press(fd):
     c = read_key(fd)
 
@@ -39,4 +42,5 @@ if __name__ == '__main__':
     enable_raw_mode(fd)
 
     while True:
+        refresh_screen(fd)
         process_key_press(fd)
