@@ -33,8 +33,16 @@ def read_key(fd):
         else:
             raise
 
+def draw_rows(fd):
+    for i in xrange(24):
+        os.write(fd, '~\r\n')
+
 def refresh_screen(fd):
     os.write(fd, '\x1b[2J')
+    os.write(fd, '\x1b[H')
+
+    draw_rows(fd)
+
     os.write(fd, '\x1b[H')
 
 def process_key_press(fd):
