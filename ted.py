@@ -3,9 +3,11 @@
 import atexit
 import curses.ascii
 import errno
+import fcntl
 import functools
 import os
 import sys
+import struct
 import termios
 import tty
 
@@ -38,8 +40,12 @@ def read_key(fd):
         else:
             raise
 
+def get_window_size(fd):
+    size = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+    return dict(zip(('screen_rows', 'screen_cols'), size))
+
 def draw_rows(fd):
-    for i in xrange(24):
+    for i in xrange(CONFIG['screen_cols']):
         os.write(fd, '~\r\n')
 
 def refresh_screen(fd):
@@ -58,10 +64,14 @@ def process_key_press(fd):
         os.write(fd, '\x1b[H')
         sys.exit(0)
 
+def init_editor(fd):
+    CONFIG.update(get_window_size(fd))
+
 
 if __name__ == '__main__':
     fd = sys.stdin.fileno()
     enable_raw_mode(fd)
+    init_editor(fd)
 
     while True:
         refresh_screen(fd)
