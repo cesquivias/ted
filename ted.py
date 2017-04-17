@@ -29,6 +29,7 @@ def read_key(fd):
 
 def refresh_screen(fd):
     os.write(fd, '\x1b[2J')
+    os.write(fd, '\x1b[H')
 
 def process_key_press(fd):
     c = read_key(fd)
