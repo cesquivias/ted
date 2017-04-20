@@ -55,8 +55,9 @@ def get_window_size(fd):
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
 def draw_rows(fd):
-    for i in xrange(CONFIG['screen_cols']):
+    for i in xrange(CONFIG['screen_cols'] - 1):
         os.write(fd, '~\r\n')
+    os.write(fd, '~')
 
 def refresh_screen(fd):
     os.write(fd, '\x1b[2J')
