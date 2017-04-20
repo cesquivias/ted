@@ -55,12 +55,11 @@ def get_window_size(fd):
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
 def draw_rows():
-    return '~\r\n' * (CONFIG['screen_cols'] - 1) + '~'
+    return '~\x1b[K\r\n' * (CONFIG['screen_cols'] - 1) + '~'
 
 def refresh_screen(fd):
     buffer = ''
     buffer += '\x1b[?25l'
-    buffer += '\x1b[2J'
     buffer += '\x1b[H'
     buffer += draw_rows()
     buffer += '\x1b[H'
