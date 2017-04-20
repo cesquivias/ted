@@ -54,18 +54,16 @@ def get_window_size(fd):
         size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
-def draw_rows(fd):
-    for i in xrange(CONFIG['screen_cols'] - 1):
-        os.write(fd, '~\r\n')
-    os.write(fd, '~')
+def draw_rows():
+    return '~\r\n' * (CONFIG['screen_cols'] - 1) + '~'
 
 def refresh_screen(fd):
-    os.write(fd, '\x1b[2J')
-    os.write(fd, '\x1b[H')
+    buffer = '\x1b[2J'
+    buffer += '\x1b[H'
+    buffer += draw_rows()
+    buffer += '\x1b[H'
 
-    draw_rows(fd)
-
-    os.write(fd, '\x1b[H')
+    os.write(fd, buffer)
 
 def process_key_press(fd):
     c = read_key(fd)
