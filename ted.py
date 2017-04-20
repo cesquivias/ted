@@ -40,8 +40,18 @@ def read_key(fd):
         else:
             raise
 
+def get_cursor_position(fd):
+    os.write(fd, '\x1b[6n')
+    output = os.read(fd, 10)
+    left, right = output.split(';')
+    return (int(left[2:]), int(right[:2]))
+
 def get_window_size(fd):
-    size = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+    try:
+        size = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+    except IOError:
+        os.write(fd, '\x1b[999C\x1b[999B')
+        size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
 def draw_rows(fd):
