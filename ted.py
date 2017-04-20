@@ -58,10 +58,13 @@ def draw_rows():
     return '~\r\n' * (CONFIG['screen_cols'] - 1) + '~'
 
 def refresh_screen(fd):
-    buffer = '\x1b[2J'
+    buffer = ''
+    buffer += '\x1b[?25l'
+    buffer += '\x1b[2J'
     buffer += '\x1b[H'
     buffer += draw_rows()
     buffer += '\x1b[H'
+    buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
 
