@@ -21,6 +21,10 @@ CONFIG = {
     'screen_cols': 0,
 }
 
+ARROW_LEFT = 1000
+ARROW_RIGHT = 1001
+ARROW_UP = 1002
+ARROW_DOWN = 1003
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -37,12 +41,28 @@ def enable_raw_mode(fd):
 
 def read_key(fd):
     try:
-        return os.read(fd, 1)
+        c = os.read(fd, 1)
     except OSError as err:
         if err.errno == errno.EAGAIN:
-            return None
+            return -1
         else:
             raise
+    if c == '\x1b':
+        try:
+            seq = os.read(fd, 2)
+            if seq[0] == '[':
+                if seq[1] == 'A':
+                    return ARROW_UP
+                elif seq[1] == 'B':
+                    return ARROW_DOWN
+                elif seq[1] == 'C':
+                    return ARROW_RIGHT
+                elif seq[1] == 'D':
+                    return ARROW_LEFT
+        except (OSError, IndexError) as err:
+            return 0x1b
+        return 0x1b
+    return ord(c)
 
 def get_cursor_position(fd):
     os.write(fd, '\x1b[6n')
@@ -80,25 +100,25 @@ def refresh_screen(fd):
 
 # Input
 
-def move_cursor(key):
-    if key == 'a':
+def move_cursor(key_code):
+    if key_code == ARROW_LEFT:
         CONFIG['cx'] -= 1
-    elif key == 'd':
+    elif key_code == ARROW_RIGHT:
         CONFIG['cx'] += 1
-    elif key == 'w':
+    elif key_code == ARROW_UP:
         CONFIG['cy'] -= 1
-    elif key == 's':
+    elif key_code == ARROW_DOWN:
         CONFIG['cy'] += 1
 
 def process_key_press(fd):
-    c = read_key(fd)
+    code = read_key(fd)
 
-    if c == ctrl('q'):
+    if code == ord(ctrl('q')):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
     else:
-        move_cursor(c)
+        move_cursor(code)
 
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
