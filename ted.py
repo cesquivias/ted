@@ -101,13 +101,13 @@ def refresh_screen(fd):
 # Input
 
 def move_cursor(key_code):
-    if key_code == ARROW_LEFT:
+    if key_code == ARROW_LEFT and CONFIG['cx'] != 0:
         CONFIG['cx'] -= 1
-    elif key_code == ARROW_RIGHT:
+    elif key_code == ARROW_RIGHT and CONFIG['cx'] < CONFIG['screen_cols'] - 1:
         CONFIG['cx'] += 1
-    elif key_code == ARROW_UP:
+    elif key_code == ARROW_UP and CONFIG['cy'] != 0:
         CONFIG['cy'] -= 1
-    elif key_code == ARROW_DOWN:
+    elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['screen_rows'] - 1:
         CONFIG['cy'] += 1
 
 def process_key_press(fd):
