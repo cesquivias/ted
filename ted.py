@@ -14,6 +14,8 @@ import tty
 VERSION = '0.0.1'
 
 CONFIG = {
+    'cx': 0,
+    'cy': 0,
     'original_termios': None,
     'screen_rows': 0,
     'screen_cols': 0,
@@ -71,10 +73,22 @@ def refresh_screen(fd):
     buffer += '\x1b[?25l'
     buffer += '\x1b[H'
     buffer += draw_rows()
-    buffer += '\x1b[H'
+    buffer += '\x1b[%d;%dH' % (CONFIG['cy'] + 1, CONFIG['cx'] + 1)
     buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
+
+# Input
+
+def move_cursor(key):
+    if key == 'a':
+        CONFIG['cx'] -= 1
+    elif key == 'd':
+        CONFIG['cx'] += 1
+    elif key == 'w':
+        CONFIG['cy'] -= 1
+    elif key == 's':
+        CONFIG['cy'] += 1
 
 def process_key_press(fd):
     c = read_key(fd)
@@ -83,6 +97,8 @@ def process_key_press(fd):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
+    else:
+        move_cursor(c)
 
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
