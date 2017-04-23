@@ -11,6 +11,8 @@ import struct
 import termios
 import tty
 
+VERSION = '0.0.1'
+
 CONFIG = {
     'original_termios': None,
     'screen_rows': 0,
@@ -55,7 +57,14 @@ def get_window_size(fd):
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
 def draw_rows():
-    return '~\x1b[K\r\n' * (CONFIG['screen_cols'] - 1) + '~'
+    width = CONFIG['screen_cols']
+    num_before_lines = CONFIG['screen_rows'] / 3
+    buffer = '~\x1b[K\r\n' * num_before_lines
+    welcome = 'Ted editor -- version %s' % VERSION
+    buffer += '~' + welcome[:width].center(width)[1:]
+    buffer += '~\x1b[K\r\n' * (CONFIG['screen_rows'] - num_before_lines - 2)
+    buffer += '~\x1b[K'
+    return buffer
 
 def refresh_screen(fd):
     buffer = ''
