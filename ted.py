@@ -25,10 +25,11 @@ ARROW_LEFT = 1000
 ARROW_RIGHT = 1001
 ARROW_UP = 1002
 ARROW_DOWN = 1003
-HOME_KEY = 1004
-END_KEY = 1005
-PAGE_UP = 1006
-PAGE_DOWN = 1007
+DEL_KEY = 1004
+HOME_KEY = 1005
+END_KEY = 1006
+PAGE_UP = 1007
+PAGE_DOWN = 1008
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -59,6 +60,8 @@ def read_key(fd):
                     if seq[2] == '~':
                         if seq[1] == '1':
                             return HOME_KEY
+                        elif seq[1] == '3':
+                            return DEL_KEY
                         elif seq[1] == '4':
                             return END_KEY
                         elif seq[1] == '5':
