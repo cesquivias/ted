@@ -25,6 +25,8 @@ ARROW_LEFT = 1000
 ARROW_RIGHT = 1001
 ARROW_UP = 1002
 ARROW_DOWN = 1003
+PAGE_UP = 1004
+PAGE_DOWN = 1005
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -49,9 +51,15 @@ def read_key(fd):
             raise
     if c == '\x1b':
         try:
-            seq = os.read(fd, 2)
+            seq = os.read(fd, 3)
             if seq[0] == '[':
-                if seq[1] == 'A':
+                if ord('0') <= ord(seq[1]) <= ord('9'):
+                    if seq[2] == '~':
+                        if seq[1] == '5':
+                            return PAGE_UP
+                        elif seq[1] == '6':
+                            return PAGE_DOWN
+                elif seq[1] == 'A':
                     return ARROW_UP
                 elif seq[1] == 'B':
                     return ARROW_DOWN
@@ -117,6 +125,12 @@ def process_key_press(fd):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
+    elif code == PAGE_UP:
+        for i in xrange(CONFIG['screen_rows']):
+            move_cursor(ARROW_UP)
+    elif code == PAGE_DOWN:
+        for i in xrange(CONFIG['screen_rows']):
+            move_cursor(ARROW_DOWN)
     else:
         move_cursor(code)
 
