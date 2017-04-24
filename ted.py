@@ -25,8 +25,10 @@ ARROW_LEFT = 1000
 ARROW_RIGHT = 1001
 ARROW_UP = 1002
 ARROW_DOWN = 1003
-PAGE_UP = 1004
-PAGE_DOWN = 1005
+HOME_KEY = 1004
+END_KEY = 1005
+PAGE_UP = 1006
+PAGE_DOWN = 1007
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -55,10 +57,18 @@ def read_key(fd):
             if seq[0] == '[':
                 if ord('0') <= ord(seq[1]) <= ord('9'):
                     if seq[2] == '~':
-                        if seq[1] == '5':
+                        if seq[1] == '1':
+                            return HOME_KEY
+                        elif seq[1] == '4':
+                            return END_KEY
+                        elif seq[1] == '5':
                             return PAGE_UP
                         elif seq[1] == '6':
                             return PAGE_DOWN
+                        elif seq[1] == '7':
+                            return HOME_KEY
+                        elif seq[1] == '8':
+                            return END_KEY
                 elif seq[1] == 'A':
                     return ARROW_UP
                 elif seq[1] == 'B':
@@ -67,6 +77,15 @@ def read_key(fd):
                     return ARROW_RIGHT
                 elif seq[1] == 'D':
                     return ARROW_LEFT
+                elif seq[1] == 'F':
+                    return END_KEY
+                elif seq[1] == 'H':
+                    return HOME_KEY
+            elif seq[0] == 'O':
+                if seq[1] == 'F':
+                    return END_KEY
+                elif seq[1] == 'H':
+                    return HOME_KEY
         except (OSError, IndexError) as err:
             return 0x1b
         return 0x1b
@@ -125,6 +144,10 @@ def process_key_press(fd):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
+    elif code == HOME_KEY:
+        CONFIG['cx'] = 0
+    elif code == END_KEY:
+        CONFIG['cx'] = CONFIG['screen_cols'] - 1
     elif code == PAGE_UP:
         for i in xrange(CONFIG['screen_rows']):
             move_cursor(ARROW_UP)
