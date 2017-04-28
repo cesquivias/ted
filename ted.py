@@ -174,8 +174,12 @@ def refresh_screen(fd):
 def move_cursor(key_code):
     row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else ''
 
-    if key_code == ARROW_LEFT and CONFIG['cx'] != 0:
-        CONFIG['cx'] -= 1
+    if key_code == ARROW_LEFT:
+        if CONFIG['cx'] != 0:
+            CONFIG['cx'] -= 1
+        elif CONFIG['cy'] > 0:
+            CONFIG['cy'] -= 1
+            CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']])
     elif key_code == ARROW_RIGHT and row and CONFIG['cx'] < len(row):
         CONFIG['cx'] += 1
     elif key_code == ARROW_UP and CONFIG['cy'] != 0:
