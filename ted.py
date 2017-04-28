@@ -19,6 +19,8 @@ CONFIG = {
     'original_termios': None,
     'screen_rows': 0,
     'screen_cols': 0,
+    'num_rows': 0,
+    'row': '',
 }
 
 ARROW_LEFT = 1000
@@ -108,14 +110,35 @@ def get_window_size(fd):
         size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
+# File I/O
+
+def editor_open(filename):
+    f = open(filename, 'r')
+    try:
+        line = f.readline()
+        if line and line[-1] in ('\r', '\n'):
+            line = line[:-1]
+        CONFIG['row'] = line
+        CONFIG['num_rows'] = 1
+    finally:
+        f.close()
+
 def draw_rows():
     width = CONFIG['screen_cols']
-    num_before_lines = CONFIG['screen_rows'] / 3
-    buffer = '~\x1b[K\r\n' * num_before_lines
-    welcome = 'Ted editor -- version %s' % VERSION
-    buffer += '~' + welcome[:width].center(width)[1:]
-    buffer += '~\x1b[K\r\n' * (CONFIG['screen_rows'] - num_before_lines - 2)
-    buffer += '~\x1b[K'
+
+    buffer = ''
+    for i in xrange(CONFIG['screen_rows']):
+        if i >= CONFIG['num_rows']:
+            if CONFIG['num_rows'] == 0 and i == CONFIG['screen_rows'] / 3:
+                welcome = 'Ted editor -- version %s' % VERSION
+                buffer += '~' + welcome[:width].center(width)[1:]
+            else:
+                buffer += '~'
+        else:
+            buffer += CONFIG['row'][:width]
+        buffer += '\x1b[K'
+        if i < CONFIG['screen_rows'] - 1:
+            buffer += '\r\n'
     return buffer
 
 def refresh_screen(fd):
@@ -165,9 +188,13 @@ def init_editor(fd):
 
 
 if __name__ == '__main__':
+    import sys
+
     fd = sys.stdin.fileno()
     enable_raw_mode(fd)
     init_editor(fd)
+    if len(sys.argv) > 1:
+        editor_open(sys.argv[1])
 
     while True:
         refresh_screen(fd)
