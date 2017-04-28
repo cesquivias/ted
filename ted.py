@@ -20,7 +20,7 @@ CONFIG = {
     'screen_rows': 0,
     'screen_cols': 0,
     'num_rows': 0,
-    'row': '',
+    'row': [],
 }
 
 ARROW_LEFT = 1000
@@ -115,11 +115,11 @@ def get_window_size(fd):
 def editor_open(filename):
     f = open(filename, 'r')
     try:
-        line = f.readline()
-        if line and line[-1] in ('\r', '\n'):
-            line = line[:-1]
-        CONFIG['row'] = line
-        CONFIG['num_rows'] = 1
+        for line in f.readlines():
+            if line and line[-1] in ('\r', '\n'):
+                line = line[:-1]
+            CONFIG['row'].append(line)
+            CONFIG['num_rows'] += 1
     finally:
         f.close()
 
@@ -135,7 +135,7 @@ def draw_rows():
             else:
                 buffer += '~'
         else:
-            buffer += CONFIG['row'][:width]
+            buffer += CONFIG['row'][i][:width]
         buffer += '\x1b[K'
         if i < CONFIG['screen_rows'] - 1:
             buffer += '\r\n'
