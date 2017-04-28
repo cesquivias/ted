@@ -23,6 +23,7 @@ class Row(object):
 CONFIG = {
     'cx': 0,
     'cy': 0,
+    'rx': 0,
     'original_termios': None,
     'rowoff': 0,
     'coloff': 0,
@@ -119,6 +120,14 @@ def get_window_size(fd):
         size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
+def row_cx_to_rx(row, cx):
+    rx = 0
+    for i in xrange(cx):
+        if row.chars[i] == '\t':
+            rx += (TAB_STOP - 1) - (rx % TAB_STOP)
+        rx += 1
+    return rx
+
 # File I/O
 
 def editor_open(filename):
@@ -135,14 +144,18 @@ def editor_open(filename):
 # Output
 
 def editor_scroll():
+    CONFIG['rx'] = 0
+    if CONFIG['cy'] < CONFIG['num_rows']:
+        CONFIG['rx'] = row_cx_to_rx(CONFIG['row'][CONFIG['cy']], CONFIG['cx'])
+
     if CONFIG['cy'] < CONFIG['rowoff']:
         CONFIG['rowoff'] = CONFIG['cy']
     if CONFIG['cy'] >= CONFIG['rowoff'] + CONFIG['screen_rows']:
         CONFIG['rowoff'] = CONFIG['cy'] - CONFIG['screen_rows'] + 1
-    if CONFIG['cx'] < CONFIG['coloff']:
-        CONFIG['coloff'] = CONFIG['cx']
-    if CONFIG['cx'] >= CONFIG['coloff'] + CONFIG['screen_cols']:
-        CONFIG['coloff'] = CONFIG['cx'] - CONFIG['screen_cols'] + 1
+    if CONFIG['rx'] < CONFIG['coloff']:
+        CONFIG['coloff'] = CONFIG['rx']
+    if CONFIG['rx'] >= CONFIG['coloff'] + CONFIG['screen_cols']:
+        CONFIG['coloff'] = CONFIG['rx'] - CONFIG['screen_cols'] + 1
 
 def draw_rows():
     width = CONFIG['screen_cols']
@@ -171,7 +184,7 @@ def refresh_screen(fd):
     buffer += '\x1b[H'
     buffer += draw_rows()
     buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, 
-                               (CONFIG['cx'] - CONFIG['coloff']) + 1)
+                               (CONFIG['rx'] - CONFIG['coloff']) + 1)
     buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
