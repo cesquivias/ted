@@ -172,16 +172,19 @@ def refresh_screen(fd):
 # Input
 
 def move_cursor(key_code):
-    row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else None
+    row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else ''
 
     if key_code == ARROW_LEFT and CONFIG['cx'] != 0:
         CONFIG['cx'] -= 1
-    elif key_code == ARROW_RIGHT and row is not None and CONFIG['cx'] < len(row):
+    elif key_code == ARROW_RIGHT and row and CONFIG['cx'] < len(row):
         CONFIG['cx'] += 1
     elif key_code == ARROW_UP and CONFIG['cy'] != 0:
         CONFIG['cy'] -= 1
     elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['num_rows'] - 1:
         CONFIG['cy'] += 1
+
+    row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else ''
+    CONFIG['cx'] = min(CONFIG['cx'], len(row))
 
 def process_key_press(fd):
     code = read_key(fd)
