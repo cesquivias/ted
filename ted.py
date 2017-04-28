@@ -18,6 +18,7 @@ CONFIG = {
     'cy': 0,
     'original_termios': None,
     'rowoff': 0,
+    'coloff': 0,
     'screen_rows': 0,
     'screen_cols': 0,
     'num_rows': 0,
@@ -131,6 +132,10 @@ def editor_scroll():
         CONFIG['rowoff'] = CONFIG['cy']
     if CONFIG['cy'] >= CONFIG['rowoff'] + CONFIG['screen_rows']:
         CONFIG['rowoff'] = CONFIG['cy'] - CONFIG['screen_rows'] + 1
+    if CONFIG['cx'] < CONFIG['coloff']:
+        CONFIG['coloff'] = CONFIG['cx']
+    if CONFIG['cx'] >= CONFIG['coloff'] + CONFIG['screen_cols']:
+        CONFIG['coloff'] = CONFIG['cx'] - CONFIG['screen_cols'] + 1
 
 def draw_rows():
     width = CONFIG['screen_cols']
@@ -145,7 +150,7 @@ def draw_rows():
             else:
                 buffer += '~'
         else:
-            buffer += CONFIG['row'][filerow][:width]
+            buffer += CONFIG['row'][filerow][CONFIG['coloff']:][:width]
         buffer += '\x1b[K'
         if i < CONFIG['screen_rows'] - 1:
             buffer += '\r\n'
@@ -158,7 +163,8 @@ def refresh_screen(fd):
     buffer += '\x1b[?25l'
     buffer += '\x1b[H'
     buffer += draw_rows()
-    buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, CONFIG['cx'] + 1)
+    buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, 
+                               (CONFIG['cx'] - CONFIG['coloff']) + 1)
     buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
@@ -168,7 +174,7 @@ def refresh_screen(fd):
 def move_cursor(key_code):
     if key_code == ARROW_LEFT and CONFIG['cx'] != 0:
         CONFIG['cx'] -= 1
-    elif key_code == ARROW_RIGHT and CONFIG['cx'] < CONFIG['screen_cols'] - 1:
+    elif key_code == ARROW_RIGHT:
         CONFIG['cx'] += 1
     elif key_code == ARROW_UP and CONFIG['cy'] != 0:
         CONFIG['cy'] -= 1
