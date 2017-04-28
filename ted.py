@@ -12,6 +12,13 @@ import termios
 import tty
 
 VERSION = '0.0.1'
+TAB_STOP = 8
+
+class Row(object):
+    def __init__(self, chars):
+        self.chars = chars
+        self.render = chars.replace('\t', ' ' * TAB_STOP)
+
 
 CONFIG = {
     'cx': 0,
@@ -120,7 +127,7 @@ def editor_open(filename):
         for line in f.readlines():
             if line and line[-1] in ('\r', '\n'):
                 line = line[:-1]
-            CONFIG['row'].append(line)
+            CONFIG['row'].append(Row(line))
             CONFIG['num_rows'] += 1
     finally:
         f.close()
@@ -150,7 +157,7 @@ def draw_rows():
             else:
                 buffer += '~'
         else:
-            buffer += CONFIG['row'][filerow][CONFIG['coloff']:][:width]
+            buffer += CONFIG['row'][filerow].render[CONFIG['coloff']:][:width]
         buffer += '\x1b[K'
         if i < CONFIG['screen_rows'] - 1:
             buffer += '\r\n'
@@ -172,14 +179,14 @@ def refresh_screen(fd):
 # Input
 
 def move_cursor(key_code):
-    row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else None
+    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < CONFIG['num_rows'] else None
 
     if key_code == ARROW_LEFT:
         if CONFIG['cx'] != 0:
             CONFIG['cx'] -= 1
         elif CONFIG['cy'] > 0:
             CONFIG['cy'] -= 1
-            CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']])
+            CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
     elif key_code == ARROW_RIGHT and row is not None:
         if CONFIG['cx'] < len(row):
             CONFIG['cx'] += 1
@@ -191,7 +198,7 @@ def move_cursor(key_code):
     elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['num_rows'] - 1:
         CONFIG['cy'] += 1
 
-    row = CONFIG['row'][CONFIG['cy']] if CONFIG['cy'] < CONFIG['num_rows'] else ''
+    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < CONFIG['num_rows'] else ''
     CONFIG['cx'] = min(CONFIG['cx'], len(row))
 
 def process_key_press(fd):
