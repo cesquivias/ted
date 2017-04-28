@@ -17,6 +17,7 @@ CONFIG = {
     'cx': 0,
     'cy': 0,
     'original_termios': None,
+    'rowoff': 0,
     'screen_rows': 0,
     'screen_cols': 0,
     'num_rows': 0,
@@ -123,30 +124,41 @@ def editor_open(filename):
     finally:
         f.close()
 
+# Output
+
+def editor_scroll():
+    if CONFIG['cy'] < CONFIG['rowoff']:
+        CONFIG['rowoff'] = CONFIG['cy']
+    if CONFIG['cy'] >= CONFIG['rowoff'] + CONFIG['screen_rows']:
+        CONFIG['rowoff'] = CONFIG['cy'] - CONFIG['screen_rows'] + 1
+
 def draw_rows():
     width = CONFIG['screen_cols']
 
     buffer = ''
     for i in xrange(CONFIG['screen_rows']):
-        if i >= CONFIG['num_rows']:
+        filerow = i + CONFIG['rowoff']
+        if filerow >= CONFIG['num_rows']:
             if CONFIG['num_rows'] == 0 and i == CONFIG['screen_rows'] / 3:
                 welcome = 'Ted editor -- version %s' % VERSION
                 buffer += '~' + welcome[:width].center(width)[1:]
             else:
                 buffer += '~'
         else:
-            buffer += CONFIG['row'][i][:width]
+            buffer += CONFIG['row'][filerow][:width]
         buffer += '\x1b[K'
         if i < CONFIG['screen_rows'] - 1:
             buffer += '\r\n'
     return buffer
 
 def refresh_screen(fd):
+    editor_scroll()
+
     buffer = ''
     buffer += '\x1b[?25l'
     buffer += '\x1b[H'
     buffer += draw_rows()
-    buffer += '\x1b[%d;%dH' % (CONFIG['cy'] + 1, CONFIG['cx'] + 1)
+    buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, CONFIG['cx'] + 1)
     buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
@@ -160,7 +172,7 @@ def move_cursor(key_code):
         CONFIG['cx'] += 1
     elif key_code == ARROW_UP and CONFIG['cy'] != 0:
         CONFIG['cy'] -= 1
-    elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['screen_rows'] - 1:
+    elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['num_rows'] - 1:
         CONFIG['cy'] += 1
 
 def process_key_press(fd):
