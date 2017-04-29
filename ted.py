@@ -9,6 +9,7 @@ import os
 import sys
 import struct
 import termios
+import time
 import tty
 
 VERSION = '0.0.1'
@@ -32,6 +33,8 @@ CONFIG = {
     'num_rows': 0,
     'row': [],
     'filename': None,
+    'status_msg': '',
+    'status_msg_time': 0,
 }
 
 ARROW_LEFT = 1000
@@ -181,7 +184,13 @@ def draw_status_bar():
     status = '%s - %d lines' % (filename, CONFIG['num_rows'])
     rstatus = '%d/%d' % (CONFIG['cy'] + 1, CONFIG['num_rows'])
     rstatus = rstatus.rjust(CONFIG['screen_cols'] - len(status))
-    return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m'
+    return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m\r\n'
+
+def draw_message_bar():
+    buffer = '\x1b[K'
+    if CONFIG['status_msg'] and  time.time() - CONFIG['status_msg_time'] < 5:
+        buffer += CONFIG['status_msg'][:CONFIG['screen_cols']]
+    return buffer
 
 def refresh_screen(fd):
     editor_scroll()
@@ -191,11 +200,16 @@ def refresh_screen(fd):
     buffer += '\x1b[H'
     buffer += draw_rows()
     buffer += draw_status_bar()
+    buffer += draw_message_bar()
     buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, 
                                (CONFIG['rx'] - CONFIG['coloff']) + 1)
     buffer += '\x1b[?25h'
 
     os.write(fd, buffer)
+
+def set_status_message(fmt, *args):
+    CONFIG['status_msg'] = fmt
+    CONFIG['status_msg_time'] = time.time()
 
 # Input
 
@@ -248,7 +262,8 @@ def process_key_press(fd):
 
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
-    CONFIG['screen_rows'] -= 1
+    CONFIG['screen_rows'] -= 2
+    set_status_message('HELP: Ctrl-Q = quit')
 
 
 if __name__ == '__main__':
