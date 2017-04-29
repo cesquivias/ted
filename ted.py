@@ -226,9 +226,12 @@ def process_key_press(fd):
     elif code == END_KEY:
         CONFIG['cx'] = CONFIG['screen_cols'] - 1
     elif code == PAGE_UP:
+        CONFIG['cy'] = CONFIG['rowoff']
         for i in xrange(CONFIG['screen_rows']):
             move_cursor(ARROW_UP)
     elif code == PAGE_DOWN:
+        CONFIG['cy'] = min(CONFIG['rowoff'] + CONFIG['screen_rows'] - 1,
+                           CONFIG['num_rows'])
         for i in xrange(CONFIG['screen_rows']):
             move_cursor(ARROW_DOWN)
     else:
