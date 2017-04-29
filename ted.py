@@ -31,6 +31,7 @@ CONFIG = {
     'screen_cols': 0,
     'num_rows': 0,
     'row': [],
+    'filename': None,
 }
 
 ARROW_LEFT = 1000
@@ -131,6 +132,7 @@ def row_cx_to_rx(row, cx):
 # File I/O
 
 def editor_open(filename):
+    CONFIG['filename'] = filename
     f = open(filename, 'r')
     try:
         for line in f.readlines():
@@ -171,10 +173,15 @@ def draw_rows():
                 buffer += '~'
         else:
             buffer += CONFIG['row'][filerow].render[CONFIG['coloff']:][:width]
-        buffer += '\x1b[K'
-        if i < CONFIG['screen_rows'] - 1:
-            buffer += '\r\n'
+        buffer += '\x1b[K\r\n'
     return buffer
+
+def draw_status_bar():
+    filename = CONFIG['filename'][:20] if CONFIG['filename'] else '[No Name]'
+    status = '%s - %d lines' % (filename, CONFIG['num_rows'])
+    rstatus = '%d/%d' % (CONFIG['cy'] + 1, CONFIG['num_rows'])
+    rstatus = rstatus.rjust(CONFIG['screen_cols'] - len(status))
+    return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m'
 
 def refresh_screen(fd):
     editor_scroll()
@@ -183,6 +190,7 @@ def refresh_screen(fd):
     buffer += '\x1b[?25l'
     buffer += '\x1b[H'
     buffer += draw_rows()
+    buffer += draw_status_bar()
     buffer += '\x1b[%d;%dH' % ((CONFIG['cy'] - CONFIG['rowoff']) + 1, 
                                (CONFIG['rx'] - CONFIG['coloff']) + 1)
     buffer += '\x1b[?25h'
@@ -240,6 +248,7 @@ def process_key_press(fd):
 
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
+    CONFIG['screen_rows'] -= 1
 
 
 if __name__ == '__main__':
