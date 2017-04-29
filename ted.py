@@ -224,7 +224,8 @@ def process_key_press(fd):
     elif code == HOME_KEY:
         CONFIG['cx'] = 0
     elif code == END_KEY:
-        CONFIG['cx'] = CONFIG['screen_cols'] - 1
+        if CONFIG['cy'] < CONFIG['num_rows']:
+            CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
     elif code == PAGE_UP:
         CONFIG['cy'] = CONFIG['rowoff']
         for i in xrange(CONFIG['screen_rows']):
