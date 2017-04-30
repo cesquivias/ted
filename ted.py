@@ -49,6 +49,7 @@ CONFIG = {
     'status_msg_time': 0,
 }
 
+BACKSPACE = 127
 ARROW_LEFT = 1000
 ARROW_RIGHT = 1001
 ARROW_UP = 1002
@@ -263,7 +264,10 @@ def move_cursor(key_code):
 def process_key_press(fd):
     code = read_key(fd)
 
-    if code == ord(ctrl('q')):
+    if code == ord('\r'):
+        # TODO
+        pass
+    elif code == ord(ctrl('q')):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
@@ -272,6 +276,9 @@ def process_key_press(fd):
     elif code == END_KEY:
         if CONFIG['cy'] < CONFIG['num_rows']:
             CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
+    elif code in (BACKSPACE, ctrl('h'), DEL_KEY):
+        # TODO
+        pass
     elif code == PAGE_UP:
         CONFIG['cy'] = CONFIG['rowoff']
         for i in xrange(CONFIG['screen_rows']):
@@ -283,6 +290,8 @@ def process_key_press(fd):
             move_cursor(ARROW_DOWN)
     elif code in (ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT):
         move_cursor(code)
+    elif code in (ctrl('l'), '\x1b'):
+        pass
     else:
         editor_insert_char(chr(code))
 
