@@ -18,7 +18,19 @@ TAB_STOP = 8
 class Row(object):
     def __init__(self, chars):
         self.chars = chars
-        self.render = chars.replace('\t', ' ' * TAB_STOP)
+
+    @property
+    def chars(self):
+        return self._chars
+
+    @chars.setter
+    def chars(self, chars):
+        self._chars = chars
+        self._render = chars.replace('\t', ' ' * TAB_STOP)
+
+    @property
+    def render(self):
+        return self._render
 
 
 CONFIG = {
@@ -131,6 +143,18 @@ def row_cx_to_rx(row, cx):
             rx += (TAB_STOP - 1) - (rx % TAB_STOP)
         rx += 1
     return rx
+
+def row_insert_char(row, at, c):
+    at = min(at, len(row.chars))
+    row.chars = row.chars[:at] + c + row.chars[at:]
+
+# Editor Operations
+
+def editor_insert_char(c):
+    if CONFIG['cy'] == CONFIG['num_rows']:
+        CONFIG['row'].append(Row(''))
+    row_insert_char(CONFIG['row'][CONFIG['cy']], CONFIG['cx'], c)
+    CONFIG['cx'] += 1
 
 # File I/O
 
@@ -257,8 +281,10 @@ def process_key_press(fd):
                            CONFIG['num_rows'])
         for i in xrange(CONFIG['screen_rows']):
             move_cursor(ARROW_DOWN)
-    else:
+    elif code in (ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT):
         move_cursor(code)
+    else:
+        editor_insert_char(chr(code))
 
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
