@@ -171,6 +171,17 @@ def editor_open(filename):
     finally:
         f.close()
 
+def editor_save():
+    if not CONFIG['filename']:
+        return
+    try:
+        with open(CONFIG['filename'], 'w') as f:
+            data = '\n'.join(r.chars for r in CONFIG['row'])
+            f.write(data)
+            set_status_message('%d bytes written to disk' % len(data))
+    except OSError as e:
+        set_status_message("Can't save! I/O error: %s" % e)
+
 # Output
 
 def editor_scroll():
@@ -271,6 +282,8 @@ def process_key_press(fd):
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
+    elif code == ord(ctrl('s')):
+        editor_save()
     elif code == HOME_KEY:
         CONFIG['cx'] = 0
     elif code == END_KEY:
@@ -298,7 +311,7 @@ def process_key_press(fd):
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
     CONFIG['screen_rows'] -= 2
-    set_status_message('HELP: Ctrl-Q = quit')
+    set_status_message('HELP: Ctrl-S = save | Ctrl-Q = quit')
 
 
 if __name__ == '__main__':
