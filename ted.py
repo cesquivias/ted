@@ -44,6 +44,7 @@ CONFIG = {
     'screen_cols': 0,
     'num_rows': 0,
     'row': [],
+    'dirty': 0,
     'filename': None,
     'status_msg': '',
     'status_msg_time': 0,
@@ -156,6 +157,7 @@ def editor_insert_char(c):
         CONFIG['row'].append(Row(''))
     row_insert_char(CONFIG['row'][CONFIG['cy']], CONFIG['cx'], c)
     CONFIG['cx'] += 1
+    CONFIG['dirty'] += 1
 
 # File I/O
 
@@ -168,6 +170,7 @@ def editor_open(filename):
                 line = line[:-1]
             CONFIG['row'].append(Row(line))
             CONFIG['num_rows'] += 1
+            CONFIG['dirty'] = 0
     finally:
         f.close()
 
@@ -178,9 +181,10 @@ def editor_save():
         with open(CONFIG['filename'], 'w') as f:
             data = '\n'.join(r.chars for r in CONFIG['row'])
             f.write(data)
-            set_status_message('%d bytes written to disk' % len(data))
     except OSError as e:
         set_status_message("Can't save! I/O error: %s" % e)
+    CONFIG['dirty'] = 0
+    set_status_message('%d bytes written to disk' % len(data))
 
 # Output
 
@@ -217,7 +221,8 @@ def draw_rows():
 
 def draw_status_bar():
     filename = CONFIG['filename'][:20] if CONFIG['filename'] else '[No Name]'
-    status = '%s - %d lines' % (filename, CONFIG['num_rows'])
+    status = '%s - %d lines %s' % (filename, CONFIG['num_rows'], 
+                                   "(modified)" if CONFIG['dirty'] else '')
     rstatus = '%d/%d' % (CONFIG['cy'] + 1, CONFIG['num_rows'])
     rstatus = rstatus.rjust(CONFIG['screen_cols'] - len(status))
     return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m\r\n'
