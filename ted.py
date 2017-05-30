@@ -14,6 +14,7 @@ import tty
 
 VERSION = '0.0.1'
 TAB_STOP = 8
+QUIT_TIMES = 3
 
 class Row(object):
     def __init__(self, chars):
@@ -48,6 +49,7 @@ CONFIG = {
     'filename': None,
     'status_msg': '',
     'status_msg_time': 0,
+    'quit_times': QUIT_TIMES,
 }
 
 BACKSPACE = 127
@@ -284,6 +286,12 @@ def process_key_press(fd):
         # TODO
         pass
     elif code == ord(ctrl('q')):
+        if CONFIG['dirty'] and CONFIG['quit_times'] > 0:
+            set_status_message('WARNING!!! File has unsaved changes. '
+                               'Press Ctrl-Q %d more times to quit.' % 
+                               CONFIG['quit_times'])
+            CONFIG['quit_times'] -= 1
+            return
         os.write(fd, '\x1b[2J')
         os.write(fd, '\x1b[H')
         sys.exit(0)
