@@ -1,0 +1,2 @@
+* Ted
+A terminal text editor written in Python. It is written using the [[http://viewsourcecode.org/snaptoken/kilo][kilo tutorial]] but the code was translated from C to Python.
