@@ -152,6 +152,12 @@ def row_insert_char(row, at, c):
     at = min(at, len(row.chars))
     row.chars = row.chars[:at] + c + row.chars[at:]
 
+def row_delete_char(row, at):
+    if at < 0 or at >= len(row.chars):
+        return
+    row.chars = row.chars[:at] + row.chars[at+1:]
+    CONFIG['dirty'] += 1
+
 # Editor Operations
 
 def editor_insert_char(c):
@@ -160,6 +166,14 @@ def editor_insert_char(c):
     row_insert_char(CONFIG['row'][CONFIG['cy']], CONFIG['cx'], c)
     CONFIG['cx'] += 1
     CONFIG['dirty'] += 1
+
+def editor_delete_char():
+    if CONFIG['cy'] == CONFIG['num_rows']:
+        return
+    row = CONFIG['row'][CONFIG['cy']]
+    if CONFIG['cx']:
+        row_delete_char(row, CONFIG['cx'] - 1)
+        CONFIG['cx'] -= 1
 
 # File I/O
 
@@ -303,8 +317,9 @@ def process_key_press(fd):
         if CONFIG['cy'] < CONFIG['num_rows']:
             CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
     elif code in (BACKSPACE, ctrl('h'), DEL_KEY):
-        # TODO
-        pass
+        if code == DEL_KEY:
+            move_cursor(ARROW_RIGHT)
+        editor_delete_char()
     elif code == PAGE_UP:
         CONFIG['cy'] = CONFIG['rowoff']
         for i in xrange(CONFIG['screen_rows']):
