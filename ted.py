@@ -148,9 +148,18 @@ def row_cx_to_rx(row, cx):
         rx += 1
     return rx
 
+def row_delete(at):
+    if at < 0 or at >= CONFIG['num_rows']:
+        return
+    del CONFIG['row'][at]
+    CONFIG['num_rows'] -= 1
+    CONFIG['dirty'] += 1
+
 def row_insert_char(row, at, c):
     at = min(at, len(row.chars))
-    row.chars = row.chars[:at] + c + row.chars[at:]
+    del CONFIG['row'][at]
+    CONFIG['num_rows'] -= 1
+    CONFIG['dirty'] += 1
 
 def row_delete_char(row, at):
     if at < 0 or at >= len(row.chars):
@@ -170,10 +179,18 @@ def editor_insert_char(c):
 def editor_delete_char():
     if CONFIG['cy'] == CONFIG['num_rows']:
         return
+    if CONFIG['cx'] == 0 and CONFIG['cy'] == 0:
+        return
     row = CONFIG['row'][CONFIG['cy']]
     if CONFIG['cx']:
         row_delete_char(row, CONFIG['cx'] - 1)
         CONFIG['cx'] -= 1
+    else:
+        CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy'] - 1].chars)
+        CONFIG['row'][CONFIG['cy'] - 1].chars += row.chars
+        CONFIG['dirty'] += 1
+        row_delete(CONFIG['cy'])
+        CONFIG['cy'] -= 1
 
 # File I/O
 
