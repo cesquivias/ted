@@ -176,6 +176,17 @@ def editor_insert_char(c):
     CONFIG['cx'] += 1
     CONFIG['dirty'] += 1
 
+def editor_insert_newline():
+    if CONFIG['cx'] == 0:
+        CONFIG['row'].insert(CONFIG['cy'], Row(''))
+    else:
+        row = CONFIG['row'][CONFIG['cy']]
+        CONFIG['row'].insert(CONFIG['cy'] + 1, Row(row.chars[CONFIG['cx']:]))
+        row.chars = row.chars[:CONFIG['cx']]
+    CONFIG['cy'] += 1
+    CONFIG['cx'] = 0
+    CONFIG['dirty'] += 1
+
 def editor_delete_char():
     if CONFIG['cy'] == CONFIG['num_rows']:
         return
@@ -314,8 +325,7 @@ def process_key_press(fd):
     code = read_key(fd)
 
     if code == ord('\r'):
-        # TODO
-        pass
+        editor_insert_newline()
     elif code == ord(ctrl('q')):
         if CONFIG['dirty'] and CONFIG['quit_times'] > 0:
             set_status_message('WARNING!!! File has unsaved changes. '
