@@ -43,7 +43,6 @@ CONFIG = {
     'coloff': 0,
     'screen_rows': 0,
     'screen_cols': 0,
-    'num_rows': 0,
     'row': [],
     'dirty': 0,
     'filename': None,
@@ -149,16 +148,14 @@ def row_cx_to_rx(row, cx):
     return rx
 
 def row_delete(at):
-    if at < 0 or at >= CONFIG['num_rows']:
+    if at < 0 or at >= len(CONFIG['row']):
         return
     del CONFIG['row'][at]
-    CONFIG['num_rows'] -= 1
     CONFIG['dirty'] += 1
 
 def row_insert_char(row, at, c):
     at = min(at, len(row.chars))
-    del CONFIG['row'][at]
-    CONFIG['num_rows'] -= 1
+    row.chars = row.chars[:at] + c + row.chars[at:]
     CONFIG['dirty'] += 1
 
 def row_delete_char(row, at):
@@ -170,7 +167,7 @@ def row_delete_char(row, at):
 # Editor Operations
 
 def editor_insert_char(c):
-    if CONFIG['cy'] == CONFIG['num_rows']:
+    if CONFIG['cy'] == len(CONFIG['row']):
         CONFIG['row'].append(Row(''))
     row_insert_char(CONFIG['row'][CONFIG['cy']], CONFIG['cx'], c)
     CONFIG['cx'] += 1
@@ -188,7 +185,7 @@ def editor_insert_newline():
     CONFIG['dirty'] += 1
 
 def editor_delete_char():
-    if CONFIG['cy'] == CONFIG['num_rows']:
+    if CONFIG['cy'] == len(CONFIG['row']):
         return
     if CONFIG['cx'] == 0 and CONFIG['cy'] == 0:
         return
@@ -211,10 +208,13 @@ def editor_open(filename):
     try:
         for line in f.readlines():
             if line and line[-1] in ('\r', '\n'):
-                line = line[:-1]
-            CONFIG['row'].append(Row(line))
-            CONFIG['num_rows'] += 1
-            CONFIG['dirty'] = 0
+                CONFIG['row'].append(Row(line[:-1]))
+            else:
+                CONFIG['row'].append(Row(line))
+        else:
+            if line and line[-1] in ('\r', '\n'):
+                CONFIG['row'].append(Row(''))
+        CONFIG['dirty'] = 0
     finally:
         f.close()
 
@@ -234,7 +234,7 @@ def editor_save():
 
 def editor_scroll():
     CONFIG['rx'] = 0
-    if CONFIG['cy'] < CONFIG['num_rows']:
+    if CONFIG['cy'] < len(CONFIG['row']):
         CONFIG['rx'] = row_cx_to_rx(CONFIG['row'][CONFIG['cy']], CONFIG['cx'])
 
     if CONFIG['cy'] < CONFIG['rowoff']:
@@ -252,8 +252,8 @@ def draw_rows():
     buffer = ''
     for i in xrange(CONFIG['screen_rows']):
         filerow = i + CONFIG['rowoff']
-        if filerow >= CONFIG['num_rows']:
-            if CONFIG['num_rows'] == 0 and i == CONFIG['screen_rows'] / 3:
+        if filerow >= len(CONFIG['row']):
+            if len(CONFIG['row']) == 0 and i == CONFIG['screen_rows'] / 3:
                 welcome = 'Ted editor -- version %s' % VERSION
                 buffer += '~' + welcome[:width].center(width)[1:]
             else:
@@ -265,9 +265,10 @@ def draw_rows():
 
 def draw_status_bar():
     filename = CONFIG['filename'][:20] if CONFIG['filename'] else '[No Name]'
-    status = '%s - %d lines %s' % (filename, CONFIG['num_rows'], 
-                                   "(modified)" if CONFIG['dirty'] else '')
-    rstatus = '%d/%d' % (CONFIG['cy'] + 1, CONFIG['num_rows'])
+    status = '%s - %d lines %d:%d %s' % (filename, len(CONFIG['row']),
+                                         CONFIG['cy'], CONFIG['cx'],
+                                         "(modified)" if CONFIG['dirty'] else '')
+    rstatus = '%d/%d' % (CONFIG['cy'] + 1, len(CONFIG['row']))
     rstatus = rstatus.rjust(CONFIG['screen_cols'] - len(status))
     return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m\r\n'
 
@@ -299,7 +300,7 @@ def set_status_message(fmt, *args):
 # Input
 
 def move_cursor(key_code):
-    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < CONFIG['num_rows'] else None
+    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < len(CONFIG['row']) else None
 
     if key_code == ARROW_LEFT:
         if CONFIG['cx'] != 0:
@@ -315,10 +316,10 @@ def move_cursor(key_code):
             CONFIG['cx'] = 0
     elif key_code == ARROW_UP and CONFIG['cy'] != 0:
         CONFIG['cy'] -= 1
-    elif key_code == ARROW_DOWN and CONFIG['cy'] < CONFIG['num_rows'] - 1:
+    elif key_code == ARROW_DOWN and CONFIG['cy'] < len(CONFIG['row']) - 1:
         CONFIG['cy'] += 1
 
-    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < CONFIG['num_rows'] else ''
+    row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < len(CONFIG['row']) else ''
     CONFIG['cx'] = min(CONFIG['cx'], len(row))
 
 def process_key_press(fd):
@@ -341,7 +342,7 @@ def process_key_press(fd):
     elif code == HOME_KEY:
         CONFIG['cx'] = 0
     elif code == END_KEY:
-        if CONFIG['cy'] < CONFIG['num_rows']:
+        if CONFIG['cy'] < len(CONFIG['row']):
             CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
     elif code in (BACKSPACE, ctrl('h'), DEL_KEY):
         if code == DEL_KEY:
@@ -353,7 +354,7 @@ def process_key_press(fd):
             move_cursor(ARROW_UP)
     elif code == PAGE_DOWN:
         CONFIG['cy'] = min(CONFIG['rowoff'] + CONFIG['screen_rows'] - 1,
-                           CONFIG['num_rows'])
+                           len(CONFIG['row']))
         for i in xrange(CONFIG['screen_rows']):
             move_cursor(ARROW_DOWN)
     elif code in (ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT):
