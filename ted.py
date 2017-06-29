@@ -218,9 +218,12 @@ def editor_open(filename):
     finally:
         f.close()
 
-def editor_save():
+def editor_save(fd):
     if not CONFIG['filename']:
-        return
+        CONFIG['filename'] = editor_prompt(fd, 'Save as : %s')
+        if CONFIG['filename'] is None:
+            set_status_message('Save aborted')
+            return
     try:
         with open(CONFIG['filename'], 'w') as f:
             data = '\n'.join(r.chars for r in CONFIG['row'])
@@ -299,6 +302,25 @@ def set_status_message(fmt, *args):
 
 # Input
 
+def editor_prompt(fd, prompt):
+    buf = ''
+    while True:
+        set_status_message(prompt % buf)
+        refresh_screen(fd)
+
+        code = read_key(fd)
+        if code in (DEL_KEY, ctrl('h'), BACKSPACE):
+            buf = buf[:-1]
+        elif code == ord('\x1b'):
+            set_status_message('')
+            return None
+        elif chr(code) == '\r':
+            if buf:
+                set_status_message('')
+                return buf
+        elif not curses.ascii.iscntrl(code) and code < 128:
+            buf += chr(code)
+
 def move_cursor(key_code):
     row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < len(CONFIG['row']) else None
 
@@ -338,7 +360,7 @@ def process_key_press(fd):
         os.write(fd, '\x1b[H')
         sys.exit(0)
     elif code == ord(ctrl('s')):
-        editor_save()
+        editor_save(fd)
     elif code == HOME_KEY:
         CONFIG['cx'] = 0
     elif code == END_KEY:
