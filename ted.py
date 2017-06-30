@@ -261,7 +261,17 @@ def editor_find_callback(query, code):
 
 
 def editor_find(fd):
+    saved_cx = CONFIG['cx']
+    saved_cy = CONFIG['cy']
+    saved_coloff = CONFIG['coloff']
+    saved_rowoff = CONFIG['rowoff']
+
     query = editor_prompt(fd, 'Search: %s (ESC to cancel)', editor_find_callback)
+    if not query:
+        CONFIG['cx'] = saved_cx
+        CONFIG['cy'] = saved_cy
+        CONFIG['coloff'] = saved_coloff
+        CONFIG['rowoff'] = saved_rowoff
 
 # Output
 
