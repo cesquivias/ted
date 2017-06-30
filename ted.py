@@ -246,8 +246,9 @@ def editor_save(fd):
 
 # Find
 
-def editor_find(fd):
-    query = editor_prompt(fd, 'Search: %s (ESC to cancel)')
+def editor_find_callback(query, code):
+    if code in ('\r', '\x1b'):
+        return
     if not query:
         return
     for i, row in enumerate(CONFIG['row']):
@@ -257,6 +258,10 @@ def editor_find(fd):
             CONFIG['cx'] = row_rx_to_cx(row, match)
             CONFIG['rowoff'] = len(CONFIG['row'])
             break
+
+
+def editor_find(fd):
+    query = editor_prompt(fd, 'Search: %s (ESC to cancel)', editor_find_callback)
 
 # Output
 
@@ -327,7 +332,7 @@ def set_status_message(fmt, *args):
 
 # Input
 
-def editor_prompt(fd, prompt):
+def editor_prompt(fd, prompt, callback=None):
     buf = ''
     while True:
         set_status_message(prompt % buf)
@@ -338,13 +343,20 @@ def editor_prompt(fd, prompt):
             buf = buf[:-1]
         elif code == ord('\x1b'):
             set_status_message('')
+            if callback:
+                callback(buf, code)
             return None
         elif chr(code) == '\r':
             if buf:
                 set_status_message('')
+                if callback:
+                    callback(buf, code)
                 return buf
         elif not curses.ascii.iscntrl(code) and code < 128:
             buf += chr(code)
+
+        if callback:
+            callback(buf, code)
 
 def move_cursor(key_code):
     row = CONFIG['row'][CONFIG['cy']].chars if CONFIG['cy'] < len(CONFIG['row']) else None
