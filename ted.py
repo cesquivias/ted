@@ -246,18 +246,40 @@ def editor_save(fd):
 
 # Find
 
-def editor_find_callback(query, code):
-    if code in ('\r', '\x1b'):
+def editor_find_callback(query, code, static={}):
+    if not query or code in ('\r', '\x1b'):
+        static['last_match'] = -1
+        static['direction'] = 1
         return
-    if not query:
-        return
-    for i, row in enumerate(CONFIG['row']):
+    elif code in (ARROW_RIGHT, ARROW_DOWN):
+        static['direction'] = 1
+    elif code in (ARROW_LEFT, ARROW_UP):
+        static['direction'] = -1
+    else:
+        static['last_match'] = -1
+        static['direction'] = 1
+
+    if static['last_match'] == -1:
+        static['direction'] = 1
+    direction = static['direction']
+    current = static['last_match']
+    i = 0
+    while i < len(CONFIG['row']):
+        current += direction
+        if current == -1:
+            current = len(CONFIG['row']) - 1
+        elif current == len(CONFIG['row']):
+            current = 0
+        
+        row = CONFIG['row'][current]
         match = row.render.find(query)
         if match != -1:
-            CONFIG['cy'] = i
+            static['last_match'] = current
+            CONFIG['cy'] = current
             CONFIG['cx'] = row_rx_to_cx(row, match)
             CONFIG['rowoff'] = len(CONFIG['row'])
             break
+        i += 1
 
 
 def editor_find(fd):
@@ -266,7 +288,7 @@ def editor_find(fd):
     saved_coloff = CONFIG['coloff']
     saved_rowoff = CONFIG['rowoff']
 
-    query = editor_prompt(fd, 'Search: %s (ESC to cancel)', editor_find_callback)
+    query = editor_prompt(fd, 'Search: %s (Use ESC/Arrows/Enter)', editor_find_callback)
     if not query:
         CONFIG['cx'] = saved_cx
         CONFIG['cy'] = saved_cy
@@ -356,7 +378,7 @@ def editor_prompt(fd, prompt, callback=None):
             if callback:
                 callback(buf, code)
             return None
-        elif chr(code) == '\r':
+        elif code == ord('\r'):
             if buf:
                 set_status_message('')
                 if callback:
