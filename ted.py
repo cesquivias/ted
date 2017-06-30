@@ -147,6 +147,17 @@ def row_cx_to_rx(row, cx):
         rx += 1
     return rx
 
+def row_rx_to_cx(row, rx):
+    cur_rx = 0
+    for cx, c in enumerate(row.chars):
+        if c == '\t':
+            cur_rx += (TAB_STOP - 1) - (cur_rx % TAB_STOP)
+        cur_rx += 1
+
+        if cur_rx > rx:
+            return cx
+    return cx
+
 def row_delete(at):
     if at < 0 or at >= len(CONFIG['row']):
         return
@@ -232,6 +243,20 @@ def editor_save(fd):
         set_status_message("Can't save! I/O error: %s" % e)
     CONFIG['dirty'] = 0
     set_status_message('%d bytes written to disk' % len(data))
+
+# Find
+
+def editor_find(fd):
+    query = editor_prompt(fd, 'Search: %s (ESC to cancel)')
+    if not query:
+        return
+    for i, row in enumerate(CONFIG['row']):
+        match = row.render.find(query)
+        if match != -1:
+            CONFIG['cy'] = i
+            CONFIG['cx'] = row_rx_to_cx(row, match)
+            CONFIG['rowoff'] = len(CONFIG['row'])
+            break
 
 # Output
 
@@ -366,6 +391,8 @@ def process_key_press(fd):
     elif code == END_KEY:
         if CONFIG['cy'] < len(CONFIG['row']):
             CONFIG['cx'] = len(CONFIG['row'][CONFIG['cy']].chars)
+    elif code == ord(ctrl('f')):
+        editor_find(fd)
     elif code in (BACKSPACE, ctrl('h'), DEL_KEY):
         if code == DEL_KEY:
             move_cursor(ARROW_RIGHT)
@@ -389,7 +416,7 @@ def process_key_press(fd):
 def init_editor(fd):
     CONFIG.update(get_window_size(fd))
     CONFIG['screen_rows'] -= 2
-    set_status_message('HELP: Ctrl-S = save | Ctrl-Q = quit')
+    set_status_message('HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find')
 
 
 if __name__ == '__main__':
