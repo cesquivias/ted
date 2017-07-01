@@ -324,7 +324,9 @@ def draw_rows():
             else:
                 buffer += '~'
         else:
-            buffer += CONFIG['row'][filerow].render[CONFIG['coloff']:][:width]
+            buffer += ''.join('\x1b[31m%s\x1b[39m' % s if s.isdigit() else s
+                              for s in
+                              CONFIG['row'][filerow].render[CONFIG['coloff']:][:width])
         buffer += '\x1b[K\r\n'
     return buffer
 
