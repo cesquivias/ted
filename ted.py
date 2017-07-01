@@ -16,6 +16,16 @@ VERSION = '0.0.1'
 TAB_STOP = 8
 QUIT_TIMES = 3
 
+HL_NORMAL = 0
+HL_NUMBER = 1
+
+	# a tab
+
+SYNTAX_TO_COLOR = {
+    HL_NORMAL: 37,
+    HL_NUMBER: 31,
+}
+
 class Row(object):
     def __init__(self, chars):
         self.chars = chars
@@ -27,11 +37,14 @@ class Row(object):
     @chars.setter
     def chars(self, chars):
         self._chars = chars
-        self._render = chars.replace('\t', ' ' * TAB_STOP)
 
     @property
     def render(self):
-        return self._render
+        return self._chars.replace('\t', ' ' * TAB_STOP)
+
+    @property
+    def hl(self):
+        return (HL_NUMBER if c.isdigit() else HL_NORMAL for c in self._chars)
 
 
 CONFIG = {
@@ -324,9 +337,16 @@ def draw_rows():
             else:
                 buffer += '~'
         else:
-            buffer += ''.join('\x1b[31m%s\x1b[39m' % s if s.isdigit() else s
-                              for s in
-                              CONFIG['row'][filerow].render[CONFIG['coloff']:][:width])
+            current_color = -1
+            for s, i in zip(CONFIG['row'][filerow].render,
+                            CONFIG['row'][filerow].hl)[CONFIG['coloff']:][:width]:
+                color = SYNTAX_TO_COLOR[i]
+                if color == current_color:
+                    buffer += s
+                else:
+                    buffer += '\x1b[%dm%s' % (color, s)
+                    current_color = color
+            buffer += '\x1b[39m'
         buffer += '\x1b[K\r\n'
     return buffer
 
