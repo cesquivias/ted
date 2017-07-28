@@ -259,7 +259,11 @@ def editor_save(fd):
 # Find
 
 def editor_find_callback(query, code, static={}):
-    if not query or code in ('\r', '\x1b'):
+    if static.get('saved_hl') is not None:
+        CONFIG['row'][static['saved_hl_line']].hl = static['saved_hl']
+        del static['saved_hl']
+
+    if not query or code in (ord('\r'), ord('\x1b')):
         static['last_match'] = -1
         static['direction'] = 1
         return
@@ -290,6 +294,9 @@ def editor_find_callback(query, code, static={}):
             CONFIG['cy'] = current
             CONFIG['cx'] = row_rx_to_cx(row, match)
             CONFIG['rowoff'] = len(CONFIG['row'])
+
+            static['saved_hl_line'] = current
+            static['saved_hl'] = list(CONFIG['row'][current].hl)
             CONFIG['row'][current].hl[match:match + len(query)] = [HL_MATCH] * len(query)
 
             break
