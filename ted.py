@@ -31,7 +31,25 @@ SYNTAX_TO_COLOR = {
 class Row(object):
     def __init__(self, chars):
         self.chars = chars
-        self.hl = [HL_NUMBER if c.isdigit() else HL_NORMAL for c in self._chars]
+        self.hl = self._to_hl()
+
+    def _to_hl(self):
+        hl = [HL_NORMAL] * len(self.chars)
+
+        prev_sep = True
+        l = len(self.chars)
+        i = 0
+        while i < l:
+            prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
+            c = self.chars[i]
+            if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (c == '.' and prev_hl == HL_NUMBER):
+                hl[i] = HL_NUMBER
+                i += 1
+                prev_sep = False
+                continue
+            prev_sep = is_separtor(c)
+            i += 1
+        return hl
 
     @property
     def chars(self):
@@ -76,6 +94,9 @@ PAGE_DOWN = 1008
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
+
+def is_separtor(c):
+    return c in " ,.()+-/*=~%<>[];"
 
 @atexit.register
 def on_exit():
