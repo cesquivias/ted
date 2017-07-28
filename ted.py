@@ -18,17 +18,20 @@ QUIT_TIMES = 3
 
 HL_NORMAL = 0
 HL_NUMBER = 1
+HL_MATCH = 2
 
 	# a tab
 
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
     HL_NUMBER: 31,
+    HL_MATCH: 34,
 }
 
 class Row(object):
     def __init__(self, chars):
         self.chars = chars
+        self.hl = [HL_NUMBER if c.isdigit() else HL_NORMAL for c in self._chars]
 
     @property
     def chars(self):
@@ -41,10 +44,6 @@ class Row(object):
     @property
     def render(self):
         return self._chars.replace('\t', ' ' * TAB_STOP)
-
-    @property
-    def hl(self):
-        return (HL_NUMBER if c.isdigit() else HL_NORMAL for c in self._chars)
 
 
 CONFIG = {
@@ -291,6 +290,8 @@ def editor_find_callback(query, code, static={}):
             CONFIG['cy'] = current
             CONFIG['cx'] = row_rx_to_cx(row, match)
             CONFIG['rowoff'] = len(CONFIG['row'])
+            CONFIG['row'][current].hl[match:match + len(query)] = [HL_MATCH] * len(query)
+
             break
         i += 1
 
