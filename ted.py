@@ -19,11 +19,13 @@ QUIT_TIMES = 3
 HL_NORMAL = 0
 HL_NUMBER = 1
 HL_MATCH = 2
+HL_STRING = 3
 
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
     HL_NUMBER: 31,
     HL_MATCH: 34,
+    HL_STRING: 35,
 }
 
 class Row(object):
@@ -38,11 +40,32 @@ class Row(object):
             return hl
 
         prev_sep = True
+        string_delim = None
+
         l = len(self.chars)
         i = 0
         while i < l:
             prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
             c = self.chars[i]
+            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_STRINGS:
+                if string_delim:
+                    hl[i] = HL_STRING
+                    if c == '\\' and i + 1 < len(self.chars):
+                        hl[i + 1] = HL_STRING
+                        i += 2
+                        continue
+                    if c == string_delim:
+                        string_delim = None
+                    i += 1
+                    prev_sep = 1
+                    continue
+                else:
+                    if c in ('"', "'"):
+                        string_delim = c
+                        hl[i] = HL_STRING
+                        i += 1
+                        continue
+
             if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_NUMBERS:
                 if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (
                         c == '.' and prev_hl == HL_NUMBER):
@@ -97,11 +120,12 @@ PAGE_UP = 1007
 PAGE_DOWN = 1008
 
 HL_HIGHLIGHT_NUMBERS = 1 << 0
+HL_HIGHLIGHT_STRINGS = 1 << 1
 
 HLDB = [
     {'filetype': 'c',
      'filematch': ['.c', '.h', '.cpp'],
-     'flags': HL_HIGHLIGHT_NUMBERS,
+     'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
     },
 ]
 
