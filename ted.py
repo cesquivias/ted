@@ -20,8 +20,6 @@ HL_NORMAL = 0
 HL_NUMBER = 1
 HL_MATCH = 2
 
-	# a tab
-
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
     HL_NUMBER: 31,
@@ -31,10 +29,13 @@ SYNTAX_TO_COLOR = {
 class Row(object):
     def __init__(self, chars):
         self.chars = chars
-        self.hl = self._to_hl()
 
-    def _to_hl(self):
+    @property
+    def hl(self):
         hl = [HL_NORMAL] * len(self.chars)
+
+        if not CONFIG['syntax']:
+            return hl
 
         prev_sep = True
         l = len(self.chars)
@@ -42,11 +43,13 @@ class Row(object):
         while i < l:
             prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
             c = self.chars[i]
-            if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (c == '.' and prev_hl == HL_NUMBER):
-                hl[i] = HL_NUMBER
-                i += 1
-                prev_sep = False
-                continue
+            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_NUMBERS:
+                if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (
+                        c == '.' and prev_hl == HL_NUMBER):
+                    hl[i] = HL_NUMBER
+                    i += 1
+                    prev_sep = False
+                    continue
             prev_sep = is_separtor(c)
             i += 1
         return hl
@@ -78,6 +81,7 @@ CONFIG = {
     'filename': None,
     'status_msg': '',
     'status_msg_time': 0,
+    'syntax': None,
     'quit_times': QUIT_TIMES,
 }
 
@@ -91,6 +95,15 @@ HOME_KEY = 1005
 END_KEY = 1006
 PAGE_UP = 1007
 PAGE_DOWN = 1008
+
+HL_HIGHLIGHT_NUMBERS = 1 << 0
+
+HLDB = [
+    {'filetype': 'c',
+     'filematch': ['.c', '.h', '.cpp'],
+     'flags': HL_HIGHLIGHT_NUMBERS,
+    },
+]
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -172,6 +185,18 @@ def get_window_size(fd):
         size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
+def select_sytnax_highlight():
+    CONFIG['syntax'] = None
+    if CONFIG['filename'] is None:
+        return
+    ext = os.path.splitext(CONFIG['filename'])[1]
+    for syntax in HLDB:
+        if ext in syntax['filematch']:
+            CONFIG['syntax'] = syntax
+            return
+
+# row operations
+
 def row_cx_to_rx(row, cx):
     rx = 0
     for i in xrange(cx):
@@ -248,8 +273,12 @@ def editor_delete_char():
 
 def editor_open(filename):
     CONFIG['filename'] = filename
+
+    select_sytnax_highlight()
+
     f = open(filename, 'r')
     try:
+        line = None
         for line in f.readlines():
             if line and line[-1] in ('\r', '\n'):
                 CONFIG['row'].append(Row(line[:-1]))
@@ -268,6 +297,7 @@ def editor_save(fd):
         if CONFIG['filename'] is None:
             set_status_message('Save aborted')
             return
+        select_sytnax_highlight()
     try:
         with open(CONFIG['filename'], 'w') as f:
             data = '\n'.join(r.chars for r in CONFIG['row'])
@@ -367,6 +397,7 @@ def draw_rows():
                 buffer += '~'
         else:
             current_color = -1
+            print >> sys.stderr, CONFIG['row'][filerow].hl
             for s, i in zip(CONFIG['row'][filerow].render,
                             CONFIG['row'][filerow].hl)[CONFIG['coloff']:][:width]:
                 color = SYNTAX_TO_COLOR[i]
@@ -384,7 +415,10 @@ def draw_status_bar():
     status = '%s - %d lines %d:%d %s' % (filename, len(CONFIG['row']),
                                          CONFIG['cy'], CONFIG['cx'],
                                          "(modified)" if CONFIG['dirty'] else '')
-    rstatus = '%d/%d' % (CONFIG['cy'] + 1, len(CONFIG['row']))
+    rstatus = '%s | %d/%d' % (
+        CONFIG['syntax']['filetype'] if CONFIG['syntax'] else 'no ft',
+        CONFIG['cy'] + 1,
+        len(CONFIG['row']))
     rstatus = rstatus.rjust(CONFIG['screen_cols'] - len(status))
     return '\x1b[7m' + (status + rstatus)[:CONFIG['screen_cols']] + '\x1b[m\r\n'
 
