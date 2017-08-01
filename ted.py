@@ -20,12 +20,14 @@ HL_NORMAL = 0
 HL_NUMBER = 1
 HL_MATCH = 2
 HL_STRING = 3
+HL_COMMENT = 4
 
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
     HL_NUMBER: 31,
     HL_MATCH: 34,
     HL_STRING: 35,
+    HL_COMMENT: 36,
 }
 
 class Row(object):
@@ -35,6 +37,7 @@ class Row(object):
     @property
     def hl(self):
         hl = [HL_NORMAL] * len(self.chars)
+        singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
 
         if not CONFIG['syntax']:
             return hl
@@ -47,6 +50,12 @@ class Row(object):
         while i < l:
             prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
             c = self.chars[i]
+
+            if singleline_comment_start and not string_delim:
+                if self.chars[i:].startswith(singleline_comment_start):
+                    hl[i:] = [HL_COMMENT] * (len(self.chars) - i)
+                    break
+
             if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_STRINGS:
                 if string_delim:
                     hl[i] = HL_STRING
@@ -125,6 +134,7 @@ HL_HIGHLIGHT_STRINGS = 1 << 1
 HLDB = [
     {'filetype': 'c',
      'filematch': ['.c', '.h', '.cpp'],
+     'singleline_comment_start': '//',
      'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
     },
 ]
