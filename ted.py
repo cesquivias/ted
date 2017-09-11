@@ -21,6 +21,8 @@ HL_NUMBER = 1
 HL_MATCH = 2
 HL_STRING = 3
 HL_COMMENT = 4
+HL_KEYWORD1 = 5
+HL_KEYWORD2 = 6
 
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
@@ -28,6 +30,8 @@ SYNTAX_TO_COLOR = {
     HL_MATCH: 34,
     HL_STRING: 35,
     HL_COMMENT: 36,
+    HL_KEYWORD1: 33,
+    HL_KEYWORD2: 32,
 }
 
 class Row(object):
@@ -82,6 +86,27 @@ class Row(object):
                     i += 1
                     prev_sep = False
                     continue
+
+            if prev_sep:
+                keyword_found = False
+                for key, color in [('keywords1', HL_KEYWORD1),
+                                   ('keywords2', HL_KEYWORD2)]:
+                    for keyword in CONFIG['syntax'][key]:
+                        klen = len(keyword)
+                        if (keyword.startswith(c) and 
+                            self.chars[i:i+klen] == keyword and
+                            is_separtor(self.chars[i + klen])):
+                            hl[i:i+klen] = [color] * klen
+                            i += klen
+                            keyword_found = True
+                            break
+                    else:
+                        continue
+                    break
+                if keyword_found:
+                    prev_sep = False
+                    continue
+
             prev_sep = is_separtor(c)
             i += 1
         return hl
@@ -134,6 +159,11 @@ HL_HIGHLIGHT_STRINGS = 1 << 1
 HLDB = [
     {'filetype': 'c',
      'filematch': ['.c', '.h', '.cpp'],
+     'keywords1': ['switch', 'if', 'while', 'for', 'break', 'continue', 
+                   'return', 'else', 'struct', 'union', 'typedef', 'static',
+                   'enum', 'class', 'case'],
+     'keywords2': ['int', 'long', 'double', 'float', 'char', 'unsigned',
+                   'signed', 'void'],
      'singleline_comment_start': '//',
      'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
     },
