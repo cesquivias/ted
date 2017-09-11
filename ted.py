@@ -37,11 +37,11 @@ class Row(object):
     @property
     def hl(self):
         hl = [HL_NORMAL] * len(self.chars)
-        singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
 
         if not CONFIG['syntax']:
             return hl
 
+        singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
         prev_sep = True
         string_delim = None
 
