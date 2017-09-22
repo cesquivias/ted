@@ -465,7 +465,13 @@ def draw_rows():
             for s, i in zip(CONFIG['row'][filerow].render,
                             CONFIG['row'][filerow].hl)[CONFIG['coloff']:][:width]:
                 color = SYNTAX_TO_COLOR[i]
-                if color == current_color:
+                code = ord(s)
+                if curses.ascii.iscntrl(code):
+                    sym = chr(ord('@') + code) if code <= 26 else '?'
+                    buffer += '\x1b[7m' + sym + '\x1b[m'
+                    if current_color != -1:
+                        buffer += '\x1b[%dm' % current_color
+                elif color == current_color:
                     buffer += s
                 else:
                     buffer += '\x1b[%dm%s' % (color, s)
