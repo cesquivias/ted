@@ -23,6 +23,7 @@ HL_STRING = 3
 HL_COMMENT = 4
 HL_KEYWORD1 = 5
 HL_KEYWORD2 = 6
+HL_MLCOMMENT = 7
 
 SYNTAX_TO_COLOR = {
     HL_NORMAL: 37,
@@ -30,13 +31,16 @@ SYNTAX_TO_COLOR = {
     HL_MATCH: 34,
     HL_STRING: 35,
     HL_COMMENT: 36,
+    HL_MLCOMMENT: 36,
     HL_KEYWORD1: 33,
     HL_KEYWORD2: 32,
 }
 
 class Row(object):
-    def __init__(self, chars):
+    def __init__(self, chars, idx):
         self.chars = chars
+        self.idx = idx
+        self.hl_open_comment = 0
 
     @property
     def hl(self):
@@ -46,8 +50,11 @@ class Row(object):
             return hl
 
         singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
+        mcs = CONFIG['syntax']['multiline_comment_start']
+        mce = CONFIG['syntax']['multiline_comment_end']
         prev_sep = True
         string_delim = None
+        in_comment = self.idx > 0 and CONFIG['row'][self.idx - 1].hl_open_comment
 
         l = len(self.chars)
         i = 0
@@ -55,10 +62,27 @@ class Row(object):
             prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
             c = self.chars[i]
 
-            if singleline_comment_start and not string_delim:
+            if singleline_comment_start and not string_delim and not in_comment:
                 if self.chars[i:].startswith(singleline_comment_start):
                     hl[i:] = [HL_COMMENT] * (len(self.chars) - i)
                     break
+
+            if mcs and mce and not string_delim:
+                if in_comment:
+                    hl[i] = HL_MLCOMMENT
+                    if self.chars.startswith(mce, i):
+                        hl[i:i+len(mce)] = [HL_MLCOMMENT] * len(mce)
+                        i += len(mce)
+                        in_comment = False
+                        prev_sep = 1
+                    else:
+                        i += 1
+                        continue
+                elif self.chars.startswith(mcs, i):
+                    hl[i:i+len(mcs)] = [HL_MLCOMMENT] * len(mcs)
+                    i += len(mcs)
+                    in_comment = True
+                    continue
 
             if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_STRINGS:
                 if string_delim:
@@ -109,6 +133,11 @@ class Row(object):
 
             prev_sep = is_separtor(c)
             i += 1
+
+        changed = self.hl_open_comment != in_comment
+        self.hl_open_comment = in_comment
+        if changed and self.idx + 1 < len(CONFIG['row']):
+            pass
         return hl
 
     @property
@@ -165,6 +194,8 @@ HLDB = [
      'keywords2': ['int', 'long', 'double', 'float', 'char', 'unsigned',
                    'signed', 'void'],
      'singleline_comment_start': '//',
+     'multiline_comment_start': '/*',
+     'multiline_comment_end': '*/',
      'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
     },
 ]
@@ -281,9 +312,12 @@ def row_rx_to_cx(row, rx):
     return cx
 
 def row_delete(at):
-    if at < 0 or at >= len(CONFIG['row']):
+    rows = CONFIG['row']
+    if at < 0 or at >= len(rows):
         return
-    del CONFIG['row'][at]
+    for i, row in enumerate(rows[at:], start=at + 1):
+        row.idx -= 1
+    del rows[at]
     CONFIG['dirty'] += 1
 
 def row_insert_char(row, at, c):
@@ -298,20 +332,29 @@ def row_delete_char(row, at):
     CONFIG['dirty'] += 1
 
 # Editor Operations
+def editor_insert_row(at, s):
+    rows = CONFIG['row']
+    for i, row in enumerate(rows[at:], start=at + 1):
+        row.idx += 1
+    # rows.append(Row(s, at))
+    rows.insert(at, Row(s, at))
 
 def editor_insert_char(c):
     if CONFIG['cy'] == len(CONFIG['row']):
-        CONFIG['row'].append(Row(''))
+        editor_insert_row(CONFIG['cy'], '')
     row_insert_char(CONFIG['row'][CONFIG['cy']], CONFIG['cx'], c)
     CONFIG['cx'] += 1
     CONFIG['dirty'] += 1
 
 def editor_insert_newline():
     if CONFIG['cx'] == 0:
-        CONFIG['row'].insert(CONFIG['cy'], Row(''))
+        editor_insert_row(CONFIG['cy'], '')
+        # CONFIG['row'].insert(CONFIG['cy'], Row('', CONFIG['cy']))
     else:
         row = CONFIG['row'][CONFIG['cy']]
-        CONFIG['row'].insert(CONFIG['cy'] + 1, Row(row.chars[CONFIG['cx']:]))
+        # CONFIG['row'].insert(CONFIG['cy'] + 1, Row(row.chars[CONFIG['cx']:],
+        #CONFIG['cy']))
+        editor_insert_row(CONFIG['cy'] + 1, row.chars[CONFIG['cx']:])
         row.chars = row.chars[:CONFIG['cx']]
     CONFIG['cy'] += 1
     CONFIG['cx'] = 0
@@ -343,14 +386,14 @@ def editor_open(filename):
     f = open(filename, 'r')
     try:
         line = None
-        for line in f.readlines():
+        for i, line in enumerate(f.readlines()):
             if line and line[-1] in ('\r', '\n'):
-                CONFIG['row'].append(Row(line[:-1]))
+                editor_insert_row(i, line[:-1])
             else:
-                CONFIG['row'].append(Row(line))
+                editor_insert_row(i, line)
         else:
             if line and line[-1] in ('\r', '\n'):
-                CONFIG['row'].append(Row(''))
+                editor_insert_row(i, '')
         CONFIG['dirty'] = 0
     finally:
         f.close()
