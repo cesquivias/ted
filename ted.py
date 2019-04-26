@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from re import search
 import atexit
 import curses.ascii
 import errno
@@ -14,7 +15,7 @@ import tty
 
 VERSION = '0.0.1'
 TAB_STOP = 8
-QUIT_TIMES = 3
+QUIT_TIMES = 1
 
 HL_NORMAL = 0
 HL_NUMBER = 1
@@ -24,134 +25,21 @@ HL_COMMENT = 4
 HL_KEYWORD1 = 5
 HL_KEYWORD2 = 6
 HL_MLCOMMENT = 7
+HL_SYMBOLS = 8
+HL_FUNCTION = 9
 
 SYNTAX_TO_COLOR = {
-    HL_NORMAL: 37,
-    HL_NUMBER: 31,
-    HL_MATCH: 34,
-    HL_STRING: 35,
-    HL_COMMENT: 36,
-    HL_MLCOMMENT: 36,
-    HL_KEYWORD1: 33,
-    HL_KEYWORD2: 32,
+    HL_NORMAL: '0;37',
+    HL_NUMBER: '1;35',
+    HL_MATCH: '0;34',
+    HL_STRING: '1;32',
+    HL_COMMENT: '0;32',
+    HL_MLCOMMENT: '0;32',
+    HL_KEYWORD1: '1;31',
+    HL_KEYWORD2: '1;34',
+    HL_SYMBOLS: '1;34',
+    HL_FUNCTION: '1;36'
 }
-
-class Row(object):
-    def __init__(self, chars, idx):
-        self.chars = chars
-        self.idx = idx
-        self.hl_open_comment = 0
-
-    @property
-    def hl(self):
-        hl = [HL_NORMAL] * len(self.chars)
-
-        if not CONFIG['syntax']:
-            return hl
-
-        singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
-        mcs = CONFIG['syntax']['multiline_comment_start']
-        mce = CONFIG['syntax']['multiline_comment_end']
-        prev_sep = True
-        string_delim = None
-        in_comment = self.idx > 0 and CONFIG['row'][self.idx - 1].hl_open_comment
-
-        l = len(self.chars)
-        i = 0
-        while i < l:
-            prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
-            c = self.chars[i]
-
-            if singleline_comment_start and not string_delim and not in_comment:
-                if self.chars[i:].startswith(singleline_comment_start):
-                    hl[i:] = [HL_COMMENT] * (len(self.chars) - i)
-                    break
-
-            if mcs and mce and not string_delim:
-                if in_comment:
-                    hl[i] = HL_MLCOMMENT
-                    if self.chars.startswith(mce, i):
-                        hl[i:i+len(mce)] = [HL_MLCOMMENT] * len(mce)
-                        i += len(mce)
-                        in_comment = False
-                        prev_sep = 1
-                    else:
-                        i += 1
-                        continue
-                elif self.chars.startswith(mcs, i):
-                    hl[i:i+len(mcs)] = [HL_MLCOMMENT] * len(mcs)
-                    i += len(mcs)
-                    in_comment = True
-                    continue
-
-            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_STRINGS:
-                if string_delim:
-                    hl[i] = HL_STRING
-                    if c == '\\' and i + 1 < len(self.chars):
-                        hl[i + 1] = HL_STRING
-                        i += 2
-                        continue
-                    if c == string_delim:
-                        string_delim = None
-                    i += 1
-                    prev_sep = 1
-                    continue
-                else:
-                    if c in ('"', "'"):
-                        string_delim = c
-                        hl[i] = HL_STRING
-                        i += 1
-                        continue
-
-            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_NUMBERS:
-                if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (
-                        c == '.' and prev_hl == HL_NUMBER):
-                    hl[i] = HL_NUMBER
-                    i += 1
-                    prev_sep = False
-                    continue
-
-            if prev_sep:
-                keyword_found = False
-                for key, color in [('keywords1', HL_KEYWORD1),
-                                   ('keywords2', HL_KEYWORD2)]:
-                    for keyword in CONFIG['syntax'][key]:
-                        klen = len(keyword)
-                        if (keyword.startswith(c) and 
-                            self.chars[i:i+klen] == keyword and
-                            is_separtor(self.chars[i + klen])):
-                            hl[i:i+klen] = [color] * klen
-                            i += klen
-                            keyword_found = True
-                            break
-                    else:
-                        continue
-                    break
-                if keyword_found:
-                    prev_sep = False
-                    continue
-
-            prev_sep = is_separtor(c)
-            i += 1
-
-        changed = self.hl_open_comment != in_comment
-        self.hl_open_comment = in_comment
-        if changed and self.idx + 1 < len(CONFIG['row']):
-            pass
-        return hl
-
-    @property
-    def chars(self):
-        return self._chars
-
-    @chars.setter
-    def chars(self, chars):
-        self._chars = chars
-
-    @property
-    def render(self):
-        return self._chars.replace('\t', ' ' * TAB_STOP)
-
 
 CONFIG = {
     'cx': 0,
@@ -188,7 +76,7 @@ HL_HIGHLIGHT_STRINGS = 1 << 1
 HLDB = [
     {'filetype': 'c',
      'filematch': ['.c', '.h', '.cpp'],
-     'keywords1': ['switch', 'if', 'while', 'for', 'break', 'continue', 
+     'keywords1': ['switch', 'if', 'while', 'for', 'break', 'continue',
                    'return', 'else', 'struct', 'union', 'typedef', 'static',
                    'enum', 'class', 'case'],
      'keywords2': ['int', 'long', 'double', 'float', 'char', 'unsigned',
@@ -198,7 +86,147 @@ HLDB = [
      'multiline_comment_end': '*/',
      'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
     },
+    {'filetype': 'python',
+     'filematch': ['.py'],
+     'keywords1': [ 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'],
+     'keywords2': ['int', 'float','False', 'None', 'True'],
+     'singleline_comment_start': '#',
+     'multiline_comment_start': '"""',
+     'multiline_comment_end': '"""',
+     'flags': HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS,
+    },
 ]
+
+class Row(object):
+    def __init__(self, chars, idx):
+        self.chars = chars
+        self.idx = idx
+        self.hl_open_comment = 0
+
+    @property
+    def hl(self):
+        hl = [HL_NORMAL] * len(self.chars)
+
+        if not CONFIG['syntax']:
+            return hl
+        singleline_comment_start = CONFIG['syntax']['singleline_comment_start']
+        mcs = CONFIG['syntax']['multiline_comment_start']
+        mce = CONFIG['syntax']['multiline_comment_end']
+        prev_sep = True
+        string_delim = None
+        in_comment = self.idx > 0 and CONFIG['row'][self.idx - 1].hl_open_comment
+
+        l = len(self.chars)
+        i = 0
+
+        while i < l:
+            prev_hl = hl[i - 1] if i > 0 else HL_NORMAL
+            c = self.chars[i]
+
+            if singleline_comment_start and not string_delim and not in_comment:
+                if self.chars[i:].startswith(singleline_comment_start):
+                    hl[i:] = [HL_COMMENT] * (len(self.chars) - i)
+                    break
+
+            if mcs and mce:
+                if in_comment:
+                    hl[i] = HL_MLCOMMENT
+                    if self.chars.startswith(mce, i):
+                        hl[i:i+len(mce)] = [HL_MLCOMMENT] * len(mce)
+                        i += len(mce)
+                        in_comment = False
+                        prev_sep = 1
+                        break
+                    else:
+                        i += 1
+                        continue
+                elif self.chars.startswith(mcs, i):
+                    hl[i:i+len(mcs)] = [HL_MLCOMMENT] * len(mcs)
+                    i += len(mcs)
+                    in_comment = True
+                    continue
+
+            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_STRINGS:
+                if string_delim:
+                    hl[i] = HL_STRING
+                    if c == '\\' and i + 1 < len(self.chars):
+                        hl[i + 1] = HL_STRING
+                        i += 2
+                        continue
+                    if c == string_delim:
+                        string_delim = None
+                    i += 1
+                    prev_sep = 1
+                    continue
+                else:
+                    if c in ('"', "'"):
+                        string_delim = c
+                        hl[i] = HL_STRING
+                        i += 1
+                        continue
+
+            if CONFIG['syntax']['flags'] & HL_HIGHLIGHT_NUMBERS:
+                if (c.isdigit() and (prev_sep or prev_hl == HL_NUMBER)) or (
+                        c == '.' and prev_hl == HL_NUMBER):
+                    hl[i] = HL_NUMBER
+                    i += 1
+                    prev_sep = False
+                    continue
+
+            if search(r'\w{1,}\ {0,}\(', self.chars[i:]):
+                for j in range(i, len(self.chars)):
+                    if self.chars[j] == '(':
+                        if not ' ' in self.chars[i:j].strip():
+                            for cont in range(i,j):
+                                hl[cont] = HL_FUNCTION
+                            break
+                        else:
+                            break
+            if prev_sep:
+                keyword_found = False
+                for key, color in [('keywords2', HL_KEYWORD2),
+                                   ('keywords1', HL_KEYWORD1)]:
+
+                    for keyword in CONFIG['syntax'][key]:
+                        klen = len(keyword)
+                        if (keyword.startswith(c) and
+                            self.chars[i:i+klen] == keyword):
+                            for j in range(i, i+klen):
+                                hl[j] = color
+                            i += klen
+                            prev_sep = False
+                            break
+
+            prev_sep = is_separtor(c)
+            i += 1
+
+        changed = self.hl_open_comment != in_comment
+        self.hl_open_comment = in_comment
+        if changed and self.idx + 1 < len(CONFIG['row']):
+            pass
+
+
+        if CONFIG['syntax']['flags'] & HL_SYMBOLS:
+            while c < len(self.chars):
+                char = self.chars[c]
+                if char in ' -=><%&*!|':
+                    hl[c] = HL_SYMBOLS
+                c += 1
+
+        return hl
+
+    @property
+    def chars(self):
+        return self._chars
+
+    @chars.setter
+    def chars(self, chars):
+        self._chars = chars
+
+    @property
+    def render(self):
+        return self._chars.replace('\t', ' ' * TAB_STOP)
+
 
 def ctrl(key):
     return chr(ord(key) & 0x1f)
@@ -280,7 +308,7 @@ def get_window_size(fd):
         size = get_cursor_position(fd)
     return dict(zip(('screen_rows', 'screen_cols'), size))
 
-def select_sytnax_highlight():
+def select_syntax_highlight():
     CONFIG['syntax'] = None
     if CONFIG['filename'] is None:
         return
@@ -381,22 +409,7 @@ def editor_delete_char():
 def editor_open(filename):
     CONFIG['filename'] = filename
 
-    select_sytnax_highlight()
-
-    f = open(filename, 'r')
-    try:
-        line = None
-        for i, line in enumerate(f.readlines()):
-            if line and line[-1] in ('\r', '\n'):
-                editor_insert_row(i, line[:-1])
-            else:
-                editor_insert_row(i, line)
-        else:
-            if line and line[-1] in ('\r', '\n'):
-                editor_insert_row(i, '')
-        CONFIG['dirty'] = 0
-    finally:
-        f.close()
+    select_syntax_highlight()
 
 def editor_save(fd):
     if not CONFIG['filename']:
@@ -404,7 +417,7 @@ def editor_save(fd):
         if CONFIG['filename'] is None:
             set_status_message('Save aborted')
             return
-        select_sytnax_highlight()
+        select_syntax_highlight()
     try:
         with open(CONFIG['filename'], 'w') as f:
             data = '\n'.join(r.chars for r in CONFIG['row'])
@@ -444,7 +457,7 @@ def editor_find_callback(query, code, static={}):
             current = len(CONFIG['row']) - 1
         elif current == len(CONFIG['row']):
             current = 0
-        
+
         row = CONFIG['row'][current]
         match = row.render.find(query)
         if match != -1:
@@ -512,12 +525,12 @@ def draw_rows():
                 if curses.ascii.iscntrl(code):
                     sym = chr(ord('@') + code) if code <= 26 else '?'
                     buffer += '\x1b[7m' + sym + '\x1b[m'
-                    if current_color != -1:
-                        buffer += '\x1b[%dm' % current_color
+                    if current_color != '-1':
+                        buffer += '\x1b[%sm' % current_color
                 elif color == current_color:
                     buffer += s
                 else:
-                    buffer += '\x1b[%dm%s' % (color, s)
+                    buffer += '\x1b[%sm%s' % (color, s)
                     current_color = color
             buffer += '\x1b[39m'
         buffer += '\x1b[K\r\n'
@@ -612,20 +625,26 @@ def move_cursor(key_code):
     CONFIG['cx'] = min(CONFIG['cx'], len(row))
 
 def process_key_press(fd):
+    def editor_insert_tab():
+        for tab in range(TAB_STOP):
+            editor_insert_char(chr(ord(' ')))
+
     code = read_key(fd)
 
-    if code == ord('\r'):
+    if code == ord('\t'):
+        editor_insert_tab()
+    elif code == ord('\r'):
         editor_insert_newline()
     elif code == ord(ctrl('q')):
         if CONFIG['dirty'] and CONFIG['quit_times'] > 0:
-            set_status_message('WARNING!!! File has unsaved changes. '
-                               'Press Ctrl-Q %d more times to quit.' % 
-                               CONFIG['quit_times'])
+            set_status_message('WARNING!!! File has unsaved changes.')
             CONFIG['quit_times'] -= 1
             return
-        os.write(fd, '\x1b[2J')
-        os.write(fd, '\x1b[H')
-        sys.exit(0)
+        else:
+            os.write(fd, '\x1b[2J')
+            os.write(fd, '\x1b[H')
+            sys.exit(0)
+
     elif code == ord(ctrl('s')):
         editor_save(fd)
     elif code == HOME_KEY:
